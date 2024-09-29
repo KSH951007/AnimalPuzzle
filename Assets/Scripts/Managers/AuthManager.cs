@@ -10,46 +10,44 @@ using UnityEngine.Networking;
 using System.Threading.Tasks;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
-using UnityEditor.PackageManager.Requests;
+using System.Runtime.CompilerServices;
+using Unity.VisualScripting.Antlr3.Runtime;
 
 
-[Serializable]
-public class TokenRequest
-{
-    public string Token { get; set; }
-}
+
 public class AuthManager : Managers<AuthManager>
 {
 
-    [SerializeField] private readonly string apiUrl = "https://localhost:7004/api/Auth/";
+    private readonly string apiUrl = @"https://localhost:7004/api/{0}/{1}/";
     private string path;
     private string jwtToken;
+    private string requestHeaderValue;
 
+    public string UID { get; private set; }
+    public bool isLogin { get; private set; }
+    public bool hasToken { get; private set; }
+    public event Action<UnityWebRequest> onLoginResult;
 
     private void Awake()
     {
         if (!base.Init())
             return;
-
-        // StartCoroutine(VaildateTokenRequest());
         path = Application.persistentDataPath + "/UserToken.txt";
         Debug.Log(path);
         if (hasLoginToken())
         {
-            jwtToken = JsonConvert.DeserializeObject<TokenRequest>(File.ReadAllText(path)).Token;
-
+            jwtToken = File.ReadAllText(path);
         }
-        else
-        {
 
-        }
     }
     public bool hasLoginToken()
     {
         if (File.Exists(path))
-            return true;
+        {
+            hasToken = true;
+        }
 
-        return false;
+        return hasToken;
     }
 
     public IEnumerator VaildateTokenRequest()
@@ -75,62 +73,64 @@ public class AuthManager : Managers<AuthManager>
             Debug.Log("Response: " + request.downloadHandler.text);
         }
     }
-    public IEnumerator SignupToken()
+    public IEnumerator SignupToken(Action<UnityWebRequest> onResult)
     {
-        UnityWebRequest requestBody = new UnityWebRequest(apiUrl + "signup", "POST")
+        UnityWebRequest signupRequest = new UnityWebRequest(string.Format(apiUrl, "Auth", "signup"), "POST")
         {
             downloadHandler = new DownloadHandlerBuffer()
         };
 
-        yield return requestBody.SendWebRequest();
+        yield return signupRequest.SendWebRequest();
 
+
+
+        if (signupRequest.result == UnityWebRequest.Result.Success)
+        {
+            Debug.Log(signupRequest.downloadHandler.text);
+            ResgisterResponse resgisterResponse = JsonConvert.DeserializeObject<ResgisterResponse>(signupRequest.downloadHandler.text);
+            jwtToken = resgisterResponse.Token;
+            UID = resgisterResponse.UID;
+            File.WriteAllText(path, jwtToken);
+            isLogin = true;
+            hasToken = true;
+        }
+        else
+        {
+            Debug.LogError(signupRequest.error);
+        }
+        onResult?.Invoke(signupRequest);
+    }
+    public IEnumerator TokenLogin()
+    {
+
+        UnityWebRequest requestBody = new UnityWebRequest(string.Format(apiUrl, "Auth", "login"), "POST")
+        {
+            uploadHandler = new UploadHandlerRaw(Encoding.UTF8.GetBytes(jwtToken)),
+            downloadHandler = new DownloadHandlerBuffer()
+        };
+        requestBody.SetRequestHeader("Content-Type", "text/plain");
+        //requestBody.SetRequestHeader("Content-Type", "application/json");
+        yield return requestBody.SendWebRequest();
 
         if (requestBody.result == UnityWebRequest.Result.Success)
         {
+            isLogin = true;
             Debug.Log(requestBody.downloadHandler.text);
-            File.WriteAllText(path, requestBody.downloadHandler.text);
+            LoginResponse loginResponse = JsonConvert.DeserializeObject<LoginResponse>(requestBody.downloadHandler.text);
+
+            File.WriteAllText(path, loginResponse.Token);
+            UID = loginResponse.UID;
         }
         else
         {
             Debug.LogError(requestBody.error);
         }
+            
+        onLoginResult?.Invoke(requestBody);
+
     }
-    public IEnumerator TokenLogin(Action<string> message, Action<UnityWebRequest> onRequest = null)
-    {
+    //public IEnumerator Logout()
+    //{
 
-        var tokenData = new
-        {
-            token = jwtToken
-        };
-
-        message?.Invoke("로그인 정보를 확인하고있습니다.");
-
-        Debug.Log(tokenData.token);
-
-        string json = JsonConvert.SerializeObject(tokenData);
-
-        UnityWebRequest requestBody = new UnityWebRequest(apiUrl + "login", "POST")
-        {
-            uploadHandler = new UploadHandlerRaw(Encoding.UTF8.GetBytes(json)),
-            downloadHandler = new DownloadHandlerBuffer()
-        };
-        requestBody.SetRequestHeader("Content-Type", "application/json");
-
-        yield return requestBody.SendWebRequest();
-
-
-        onRequest?.Invoke(requestBody);
-
-        if (requestBody.result == UnityWebRequest.Result.Success)
-        {
-            message?.Invoke("로그인 성공");
-            Debug.Log(requestBody.downloadHandler.text);
-            File.WriteAllText(path, requestBody.downloadHandler.text);
-        }
-        else
-        {
-            Debug.LogError(requestBody.error);
-        }
-    }
-
+    //}
 }

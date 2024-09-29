@@ -10,6 +10,7 @@ public class StageGenerator : EditorWindow
     private GameObject[,] grid;
     private Texture2D stageBackground;
 
+
     [MenuItem("Windows/StageEditor")]
     public static void ShowWindow()
     {
@@ -55,7 +56,7 @@ public class StageGenerator : EditorWindow
             GUILayout.Box(stageBackground);
             //GUI.BeginGroup(new Rect(10, 200, 500, 500),stageBackground);
             //GUI.DrawTexture(new Rect(10, 150, 100, 100), stageBackground);
-           // GUI.EndGroup();
+            // GUI.EndGroup();
         }
         GUILayout.Label("Stage Grid", EditorStyles.boldLabel);
 
