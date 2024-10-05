@@ -1,75 +1,258 @@
+using Newtonsoft.Json;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEditor;
+using UnityEditor.PackageManager.Requests;
 using UnityEngine;
+using UnityEngine.InputSystem;
+using UnityEngine.Networking;
+using Unity.EditorCoroutines.Editor;
+using static System.Net.WebRequestMethods;
+using System.Text;
 
 public class StageGenerator : EditorWindow
 {
+    private int stageLevel = 1;
+    private Vector2Int CellSize;
+    private int stepCount;
 
-    private Vector2Int stageSize;
     private GameObject[,] grid;
-    private Texture2D stageBackground;
+    private Texture2D cellTex;
+    private bool[,] isActiveCells;
+    private List<Texture2D> blockImages = new List<Texture2D>();
+    private List<bool> selectBlockList = new List<bool>();
+    private Vector2 BlockItemScrollPos;
 
-
-    [MenuItem("Windows/StageEditor")]
+    [MenuItem("Custom/StageEditor")]
     public static void ShowWindow()
     {
+
         GetWindow<StageGenerator>("Stage Editor");
+    }
+    private void OnEnable()
+    {
+        LoadBlockIconImage();
+        LoadCellImage();
+
     }
     private void OnGUI()
     {
+        EditorGUILayout.BeginHorizontal();
+        EditorGUILayout.BeginVertical("box", GUILayout.Width(350), GUILayout.Height(position.height));
         GUILayout.Label("Stage Settings", EditorStyles.boldLabel);
 
         // Stage 크기 설정
-        stageSize.x = EditorGUILayout.IntField("Width", stageSize.x);
-        stageSize.y = EditorGUILayout.IntField("Height", stageSize.y);
-        stageBackground = (Texture2D)EditorGUILayout.ObjectField("Stage Background", stageBackground, typeof(Texture2D), false);
+        stageLevel = EditorGUILayout.IntField("StageLevel", stageLevel);
+        stageLevel = stageLevel < 0 ? 0 : stageLevel;
+        stepCount = EditorGUILayout.IntSlider("StepCount", stepCount, 0, 50);
+        GUILayout.Space(10);
+        GUILayout.Label("Board Settings", EditorStyles.boldLabel);
+        CellSize.x = EditorGUILayout.IntField("Width", CellSize.x);
+        CellSize.x = Mathf.Clamp(CellSize.x, 0, 9);
+
+        CellSize.y = EditorGUILayout.IntField("Height", CellSize.y);
+        CellSize.y = Mathf.Clamp(CellSize.y, 0, 9);
+
+        SettingBlockItem();
 
         if (GUILayout.Button("Create Grid"))
         {
             CreateGrid();
         }
+        if (GUILayout.Button("Clear Grid"))
+        {
+        }
+        if (GUILayout.Button("Regist Board"))
+        {
+            EditorCoroutineUtility.StartCoroutineOwnerless(SaveToDatabase());
+        }
 
+        EditorGUILayout.EndVertical();
+        EditorGUILayout.BeginVertical("box");
         if (grid != null)
         {
             DrawGrid();
         }
+        EditorGUILayout.EndVertical();
+        EditorGUILayout.EndHorizontal();
     }
+    private void LoadCellImage()
+    {
+        string FilePath = "Assets/Imports/Cell/Cell.png";  // 실제 경로로 변경해야 함
 
+
+        Texture2D texture = AssetDatabase.LoadAssetAtPath<Texture2D>(FilePath);
+        if (texture != null)
+        {
+            cellTex = texture;
+            Debug.Log(cellTex);
+        }
+
+    }
+    private void SettingBlockItem()
+    {
+        GUILayout.Space(10);
+        GUILayout.Label("Appearance Blocks", EditorStyles.boldLabel);
+
+
+        Rect iconBoxRect = GUILayoutUtility.GetLastRect();
+        BlockItemScrollPos = GUILayout.BeginScrollView(BlockItemScrollPos);
+
+
+        Vector2Int iconLayout = new Vector2Int(5, 5);
+
+        float iconWidth = 60;
+        float iconHeight = 60;
+
+
+        for (int i = 0; i < iconLayout.y; i++)
+        {
+            EditorGUILayout.BeginHorizontal();
+            for (int j = 0; j < iconLayout.x; j++)
+            {
+                int index = i * iconLayout.x + j;
+                if (blockImages.Count <= index)
+                {
+                    break;
+                }
+                Texture2D icon = blockImages[index];
+                if (icon != null)
+                {
+                    GUILayout.BeginVertical(GUILayout.Width(iconWidth), GUILayout.Height(iconHeight));
+                    Rect rect = GUILayoutUtility.GetRect(iconWidth, iconHeight, GUILayout.ExpandWidth(false));
+                    // GUI.DrawTexture(rect, icon, ScaleMode.ScaleToFit);
+                    if (selectBlockList.Count > index)
+                    {
+                        selectBlockList[index] = GUI.Toggle(rect, selectBlockList[index], icon);
+
+
+                    }
+
+                    GUILayout.EndVertical();
+                }
+                else
+                {
+                    GUILayout.Space(iconWidth);
+                }
+
+            }
+            EditorGUILayout.EndHorizontal();
+        }
+
+        GUILayout.EndScrollView();
+    }
+    private void LoadBlockIconImage()
+    {
+        string filePathFormat = @"Assets/Imports/Blocks/AnimalBlock/{0}.png";
+        // 특정 경로에 있는 이미지 에셋을 불러옴
+        for (int i = 0; i < (int)BlockType.End; i++)
+        {
+            string filePath = string.Format(filePathFormat, ((BlockType)i).ToString());
+            Texture2D texture = AssetDatabase.LoadAssetAtPath<Texture2D>(filePath);
+            if (texture != null)
+            {
+                blockImages.Add(texture);
+                Debug.Log(texture.name);
+                selectBlockList.Add(false);
+            }
+        }
+
+
+    }
     private void CreateGrid()
     {
-        grid = new GameObject[stageSize.x, stageSize.y];
-        for (int x = 0; x < stageSize.x; x++)
+        isActiveCells = new bool[CellSize.x, CellSize.y];
+
+        grid = new GameObject[CellSize.x, CellSize.y];
+        for (int x = 0; x < CellSize.x; x++)
         {
-            for (int y = 0; y < stageSize.y; y++)
+            for (int y = 0; y < CellSize.y; y++)
             {
-                grid[x, y] = null; // 추후 각 좌표에 맞는 게임 오브젝트 배치
+                isActiveCells[x, y] = true;
             }
         }
     }
 
     private void DrawGrid()
     {
-        if (stageBackground != null)
-        {
-            GUILayout.Label("Stage Preview");
-            GUILayout.Box(stageBackground);
-            //GUI.BeginGroup(new Rect(10, 200, 500, 500),stageBackground);
-            //GUI.DrawTexture(new Rect(10, 150, 100, 100), stageBackground);
-            // GUI.EndGroup();
-        }
-        GUILayout.Label("Stage Grid", EditorStyles.boldLabel);
 
-        for (int x = 0; x < stageSize.x; x++)
+        int size = 50;
+        for (int i = 0; i < CellSize.x; i++)
         {
             GUILayout.BeginHorizontal();
-            for (int y = 0; y < stageSize.y; y++)
+            for (int j = 0; j < CellSize.y; j++)
             {
-                grid[x, y] = (GameObject)EditorGUILayout.ObjectField(grid[x, y], typeof(GameObject), false);
+
+                int index = i * CellSize.y + j;
+
+                GUILayout.BeginVertical(GUILayout.Width(size), GUILayout.Height(size));
+                Rect rect = GUILayoutUtility.GetRect(size, size, GUILayout.ExpandWidth(false));
+                if (GUI.Button(rect, isActiveCells[i, j] == true ? cellTex : null))
+                {
+                    isActiveCells[i, j] = !isActiveCells[i, j];
+                }
+                GUILayout.EndVertical();
+
+
+
             }
             GUILayout.EndHorizontal();
+
+
         }
 
+    }
+    public IEnumerator SaveToDatabase()
+    {
+        string url = $"https://localhost:7004/api/Stage/{stageLevel}";
+
+        List<BlockDBData> blockList = new List<BlockDBData>(selectBlockList.Count);
+        for (int i = 0; i < selectBlockList.Count; i++)
+        {
+
+            if (selectBlockList[i] == true)
+            {
+                BlockDBData blockData = new BlockDBData()
+                {
+                    type = (BlockType)i
+                };
+                blockList.Add(blockData);
+
+            }
+        }
+
+        StageDBData stageData = new StageDBData()
+        {
+            StageLevel = stageLevel,
+            StepCount = stepCount,
+            BoardRowCount = CellSize.x,
+            BoardHeightCount = CellSize.y,
+            BlockList = JsonConvert.SerializeObject(blockList),
+            IsPresenceCells = JsonConvert.SerializeObject(isActiveCells)
+        };
+      
+
+
+     
+
+        string jsonData = JsonConvert.SerializeObject(stageData);
+        Debug.Log(jsonData);
+        UnityWebRequest request = new UnityWebRequest(url, "POST")
+        {
+            uploadHandler = new UploadHandlerRaw(Encoding.UTF8.GetBytes(jsonData)),
+        };
+        request.SetRequestHeader("Content-Type", "application/json");
+        yield return request.SendWebRequest();
+
+        if (request.result == UnityWebRequest.Result.Success)
+        {
+            Debug.Log("성공");
+        }
+        else
+        {
+            Debug.Log("실패");
+
+        }
     }
 
 }

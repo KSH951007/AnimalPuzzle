@@ -6,4 +6,13 @@ public class PoolManager : Managers<PoolManager>
 {
 
 
+
+    private void Awake()
+    {
+        if (!base.Init())
+            return;
+
+
+    }
+
 }

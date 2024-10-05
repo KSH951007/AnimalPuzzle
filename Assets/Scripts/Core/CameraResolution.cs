@@ -2,7 +2,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
-public class CameraResolution : MonoBehaviour
+public class CameraScaler : MonoBehaviour
 {
     [SerializeField] private Vector2 aspect;
 
