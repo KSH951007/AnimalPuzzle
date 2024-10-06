@@ -7,19 +7,17 @@ public class AnimalBlock : Block
 {
     private void Awake()
     {
-        isMoveable = true;
+
+
     }
- 
-    protected override void DestroyBlock()
+
+    public void Move(Block[,] blockLayer)
     {
 
+
     }
 
-    protected override bool FindMatches()
-    {
 
-        return true;
-    }
 
 
 }

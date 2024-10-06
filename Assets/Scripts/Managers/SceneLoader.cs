@@ -25,7 +25,7 @@ public class SceneLoader : Managers<SceneLoader>
         maxJobCount = 0;
     }
 
-    public void AddLoad(IEnumerator load)
+    public void AddLoadJobQueue(IEnumerator load)
     {
         loadinJobQueue.Enqueue(load);
         maxJobCount++;
@@ -41,21 +41,26 @@ public class SceneLoader : Managers<SceneLoader>
             yield return StartCoroutine(load);
             currentJobCount++;
             onPrgressLoad?.Invoke(currentJobCount, maxJobCount);
+
+            yield return new WaitForSeconds(2f);
         }
 
         maxJobCount = 0;
         currentJobCount = 0;
+
         yield return StartCoroutine(NextSceneLoadAsync(nextSceneName));
 
     }
     public IEnumerator NextSceneLoadAsync(string nextSceneName)
     {
+
+        Scene prevScene = SceneManager.GetActiveScene();
+
         this.nextSceneName = nextSceneName;
 
         if (maxJobCount > 0)
         {
             SceneManager.LoadScene(loadingSceneName);
-            Debug.Log("¾À¾ð·Îµå");
             yield break;
         }
 
@@ -72,6 +77,18 @@ public class SceneLoader : Managers<SceneLoader>
         while (!nextSceneOper.isDone)
         {
             yield return null;
+        }
+
+
+        if (SceneManager.GetSceneByName(prevScene.name).isLoaded)
+        {
+            AsyncOperation unloadSceneOper = SceneManager.UnloadSceneAsync(prevScene);
+
+            Debug.Log(unloadSceneOper.isDone);
+            while (!unloadSceneOper.isDone)
+            {
+                yield return null;
+            }
         }
 
         if (SceneManager.GetSceneByName(loadingSceneName).isLoaded)

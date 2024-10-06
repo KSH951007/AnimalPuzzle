@@ -15,12 +15,21 @@ public class Player : MonoBehaviour
 
 
     public event Action onHeartTimer;
+
     private void Awake()
     {
+        if (GameObject.FindGameObjectsWithTag("Player").Length > 1)
+        {
+            Destroy(gameObject);
+        }
+        else
+        { 
+            DontDestroyOnLoad(gameObject);
+        }
+
         heartChageTimeLimit = 30 * 60;
         heartMaxCount = 5;
         DataManager dataManager = DataManager.Instance;
-        Debug.Log(dataManager.FindData(ResponseDataType.Asset));
         if (dataManager.FindData(ResponseDataType.Asset))
         {
             UserAssetResponse userAsset = (UserAssetResponse)dataManager.GetData(ResponseDataType.Asset);
@@ -32,6 +41,8 @@ public class Player : MonoBehaviour
             CoinCount = userAsset.CoinCount;
             Debug.Log(HeartCount);
         }
+
+     
 
         DontDestroyOnLoad(gameObject);
         onChangeHeartCount?.Invoke(HeartCount);
@@ -50,5 +61,11 @@ public class Player : MonoBehaviour
 
         //}
     }
+   
+
+}
+
+public class UserAssetData
+{
 
 }

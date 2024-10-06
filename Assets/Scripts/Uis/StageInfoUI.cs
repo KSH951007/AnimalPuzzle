@@ -7,16 +7,25 @@ public class StageInfoUI : MonoBehaviour
 {
     private readonly string stageTitleForm = @"Stage {0}";
     [SerializeField] private TextMeshProUGUI stageTitleTMP;
-
-
-    public void SetStageInfo(int stageIndex)
+    [SerializeField] private RectTransform goalListParentTr;
+    [SerializeField] private RectTransform itemListParentTr;
+    public void Show()
     {
-        stageTitleTMP.text = string.Format(stageTitleForm, stageIndex);
+        this.gameObject.SetActive(true);
+    }
+    public void Hide()
+    {
+        this.gameObject.SetActive(false);
+
+    }
+    public void SetStageInfo(StageData stageData)
+    {
+        stageTitleTMP.text = string.Format(stageTitleForm, stageData.StageLevel);
 
     }
 
     public void PressStartButton()
     {
-
+        StartCoroutine(SceneLoader.Instance.NextSceneLoadAsync("StageScene"));
     }
 }

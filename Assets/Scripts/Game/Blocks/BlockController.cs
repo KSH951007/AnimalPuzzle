@@ -1,147 +1,145 @@
 using System.Collections;
 using System.Collections.Generic;
-using Unity.VisualScripting;
+using UnityEditor.U2D.Aseprite;
 using UnityEngine;
-using UnityEngine.EventSystems;
-using UnityEngine.UI;
+using UnityEngine.InputSystem;
+using static UnityEditor.PlayerSettings;
 
+public enum BlockDirection
+{
+    Left,
+    Right,
+    Top,
+    Bottom,
+    End
+}
 public class BlockController : MonoBehaviour
 {
-    Block[,] blocksLayers;
-    private int blockColumnsCount;
-    private int blockRowCount;
-
-    private bool isProgress;
-    private GridLayoutGroup blockLayoutGroup;
-    private readonly Vector2Int[] directon = { new Vector2Int(-1, 0), new Vector2Int(1, 0), new Vector2Int(0, -1), new Vector2Int(0, 1) };
-
-    private Vector2Int? beginSelectBlock;
+    private StageData stageData;
+    [SerializeField] private BlockSpawner spawner;
+    [SerializeField] private GameObject cellPrefab;
+    private Cell[,] cells;
+    private Vector2Int[] directionArray;
     private void Awake()
     {
-        blockLayoutGroup = GetComponent<GridLayoutGroup>();
-        isProgress = false;
+        directionArray = new Vector2Int[(int)BlockDirection.End];
+        directionArray[(int)BlockDirection.Left] = new Vector2Int(-1, 0);
+        directionArray[(int)BlockDirection.Right] = new Vector2Int(1, 0);
+        directionArray[(int)BlockDirection.Top] = new Vector2Int(0, -1);
+        directionArray[(int)BlockDirection.Bottom] = new Vector2Int(0, 1);
+    }
+    public void Init(StageData stageData)
+    {
+        CreateBoard(stageData);
+        SetupBlock(stageData);
+    }
+    public void CreateBoard(StageData stageData)
+    {
+        if (stageData == null)
+            return;
 
+        float centerRow = stageData.IsPresenceCells.GetLength(1) / 2f;
+        float centerColumn = stageData.IsPresenceCells.GetLength(0) / 2f;
+        cells = new Cell[stageData.BoardRowCount, stageData.BoardHeightCount];
 
-        blockColumnsCount = blockLayoutGroup.constraintCount;
-        blockRowCount = this.transform.childCount / blockColumnsCount;
-        blocksLayers = new Block[blockRowCount, blockColumnsCount];
-        for (int i = 0; i < blockRowCount; i++)
+        for (int i = 0; i < stageData.IsPresenceCells.GetLength(1); i++)
         {
-            for (int j = 0; j < blockColumnsCount; j++)
+            for (int j = 0; j < stageData.IsPresenceCells.GetLength(0); j++)
             {
-                Transform blockTr = this.transform.GetChild(i * blockColumnsCount + j);
+                float xPos = 0 - centerColumn + j;
+                float yPos = 0 - centerRow + i;
 
-                blocksLayers[i, j] = blockTr.GetComponent<Block>();
-                blocksLayers[i, j].onBeginDrag += OnBeginDrag;
-                blocksLayers[i, j].onDrop += SwapBlock;
-                blocksLayers[i, j].Setup(new Vector2Int(i, j));
+                if (stageData.IsPresenceCells[i, j] == true)
+                {
+                    GameObject cellObj = Instantiate(cellPrefab, transform);
+                    cellObj.transform.position = new Vector2(xPos, yPos);
+                    cells[i, j] = cellObj.GetComponent<Cell>();
+                }
+                else
+                {
+                    cells[i, j] = null;
+                }
+
+
+            }
+
+        }
+    }
+    public void SetupBlock(StageData stageData)
+    {
+
+        int blockCount = stageData.BlockList.Count;
+        for (int i = 0; i < cells.GetLength(1); i++)
+        {
+            for (int j = 0; j < cells.GetLength(0); j++)
+            {
+                int randIndex;
+                BlockID blockType;
+                do
+                {
+                    randIndex = Random.Range(0, blockCount);
+                    blockType = stageData.BlockList[randIndex];
+
+                } while (!IsSetupMatch(blockType, i, j));
+
+                if (cells[i, j] != null)
+                {
+                    Block block = spawner.GetBlock(blockType, cells[i, j].transform);
+                    cells[i, j].SetBlock(block);
+                }
             }
         }
     }
 
-
-
-    public List<Vector2Int> FindMaches(int x, int y)
+    public bool IsSetupMatch(BlockID blockType, int x, int y)
     {
-
-        List<Vector2Int> matchBlocks = new List<Vector2Int>();
-        bool[,] isVisited = new bool[blockRowCount, blockColumnsCount];
-
-        Vector2Int matchCount = new Vector2Int(0, 0);
-        int columnCount = 0;
-        int rowCount = 0;
-
-        BlockType blockType = blocksLayers[x, y].blockType;
+        int rowMatchCount = 1;
+        int colMatchCount = 1;
 
 
 
-        DFS(x, y, blockType, isVisited, matchBlocks, ref matchCount);
-
-
-        if (TryCreateSpecialBlock(matchCount, out Block specialBlock))
+        for (int i = 0; i < directionArray.Length; i++)
         {
 
+
+            for (int j = 1; j < 3; j++)
+            {
+                int posX = x + directionArray[i].x * j;
+                int posY = y + directionArray[i].y * j;
+                if (posX <= 0 || posX >= cells.GetLength(1))
+                    break;
+                if (posY <= 0 || posY >= cells.GetLength(0))
+                    break;
+                if (cells[posX, posY] == null || cells[posX, posY].isEmpty == true)
+                    break;
+
+
+                if (cells[posX, posY].block.GetBlockID() == blockType)
+                {
+
+                    if (posX + x <= -1 || posX + x >= 1)
+                    {
+                        rowMatchCount++;
+                    }
+                    else if (posY + y <= -1 || posY + y >= 1)
+                    {
+                        colMatchCount++;
+                    }
+
+                }
+
+            }
         }
 
-
-        return matchBlocks;
-    }
-    public void DFS(int x, int y, BlockType blockType, bool[,] isVisited, List<Vector2Int> matchBlocks, ref Vector2Int matchCount)
-    {
-        if (isVisited[x, y] == true)
-            return;
-
-
-        isVisited[x, y] = true;
-
-        matchBlocks.Add(new Vector2Int(x, y));
-
-        for (int i = 0; i < directon.Length; i++)
-        {
-            int newDirX = x + directon[i].x;
-            int newDirY = y + directon[i].y;
-
-            matchCount.x += directon[i].x;
-            matchCount.y += directon[i].y;
-            DFS(newDirX, newDirY, blockType, isVisited, matchBlocks, ref matchCount);
-        }
-    }
-    public bool TryCreateSpecialBlock(in Vector2Int matchCount, out Block specialBlock)
-    {
-        //가로 새로 2칸씩이면 목표 블럭을 향해 터트리는 블럭생성
-
-        //가로 3칸,세로3칸이면 주변 5x5 터트리는 블럭생성
-        //가로 5 or 세로 5칸 스왑한 같은블럭을 전체 터트리는 블럭생성
-        //가로로 5칸 and 세로 5칸이면 전체블럭 터트리는 블럭생성
-
-        specialBlock = null;
-
-        return true;
-    }
-    public void DestroyBlocks(List<Vector2Int> blocks)
-    {
-
-
-    }
-
-
-    public void OnBeginDrag(Vector2Int pos)
-    {
-        //이동이 가능한 블럭인지 확인
-        if (blocksLayers[pos.x, pos.y].isMoveable == false)
-            return;
-
-        beginSelectBlock = pos;
-
-
-        Debug.Log(pos);
-    }
-
-    public void SwapBlock(Vector2Int pos)
-    {
-        if (beginSelectBlock.HasValue == false)
-            return;
-
-        if (IsSwapBlocks(beginSelectBlock.Value, pos) == false)
-            return;
-
-
-      
-
-        FindMaches(pos.x, pos.y);
-
-
-
-        beginSelectBlock = null;
-
-        Debug.Log(pos);
-    }
-    public bool IsSwapBlocks(Vector2Int firstBlock, Vector2Int secondBlock)
-    {
-
-        if (Vector2Int.Distance(firstBlock, secondBlock) == 1)
+        if (rowMatchCount >= 3 || colMatchCount >= 3)
+            return false;
+        else
             return true;
-
-        return false;
     }
+
+    private void Update()
+    {
+     //   Touchscreen.current.primaryTouch.position
+    }
+
 }

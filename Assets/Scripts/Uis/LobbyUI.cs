@@ -13,9 +13,17 @@ public class LobbyUI : MonoBehaviour
     [Header("Coin")]
     [SerializeField] private TextMeshProUGUI coinCountTMP;
 
+    [SerializeField] private TextMeshProUGUI stageLevelBtnTMP;
 
+    [SerializeField] private StageInfoUI stageInfoUI;
     private Player player;
 
+
+
+    private void OnEnable()
+    {
+        GameManager.Instance.onStageInfoChanged += OnStageChanged;
+    }
 
     // Start is called before the first frame update
     void Start()
@@ -26,6 +34,7 @@ public class LobbyUI : MonoBehaviour
         player.onChangeHeartCount += SetHeartCount;
         SetCoinCount(player.CoinCount);
         player.onChangeCoinCount += SetCoinCount;
+
     }
 
     private void OnDestroy()
@@ -46,5 +55,17 @@ public class LobbyUI : MonoBehaviour
     public void SetCoinCount(int coinCount)
     {
         coinCountTMP.text = coinCount.ToString();
+    }
+
+    public void OnStageChanged(StageData stageData)
+    {
+        stageLevelBtnTMP.text = $"Stage {stageData.StageLevel}";
+        stageInfoUI.SetStageInfo(stageData);
+    }
+
+    public void PressEntryStageInfo()
+    {
+
+        stageInfoUI.Show();
     }
 }

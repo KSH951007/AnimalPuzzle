@@ -145,9 +145,9 @@ public class StageGenerator : EditorWindow
     {
         string filePathFormat = @"Assets/Imports/Blocks/AnimalBlock/{0}.png";
         // 특정 경로에 있는 이미지 에셋을 불러옴
-        for (int i = 0; i < (int)BlockType.End; i++)
+        for (int i = 0; i < (int)BlockID.End; i++)
         {
-            string filePath = string.Format(filePathFormat, ((BlockType)i).ToString());
+            string filePath = string.Format(filePathFormat, ((BlockID)i).ToString());
             Texture2D texture = AssetDatabase.LoadAssetAtPath<Texture2D>(filePath);
             if (texture != null)
             {
@@ -206,17 +206,14 @@ public class StageGenerator : EditorWindow
     {
         string url = $"https://localhost:7004/api/Stage/{stageLevel}";
 
-        List<BlockDBData> blockList = new List<BlockDBData>(selectBlockList.Count);
+        List<BlockID> blockList = new List<BlockID>(selectBlockList.Count);
         for (int i = 0; i < selectBlockList.Count; i++)
         {
 
             if (selectBlockList[i] == true)
             {
-                BlockDBData blockData = new BlockDBData()
-                {
-                    type = (BlockType)i
-                };
-                blockList.Add(blockData);
+               
+                blockList.Add((BlockID)i);
 
             }
         }
@@ -230,10 +227,7 @@ public class StageGenerator : EditorWindow
             BlockList = JsonConvert.SerializeObject(blockList),
             IsPresenceCells = JsonConvert.SerializeObject(isActiveCells)
         };
-      
 
-
-     
 
         string jsonData = JsonConvert.SerializeObject(stageData);
         Debug.Log(jsonData);

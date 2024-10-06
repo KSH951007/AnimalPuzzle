@@ -2,7 +2,7 @@ using System.Collections;
 using System.Collections.Generic;
 
 
-public enum BlockType
+public enum BlockID
 {
     Alligator,
     Bear,

@@ -6,7 +6,7 @@ public class DBData
 {
 
 }
-public class UserDBData : DBData
+public class UserAccountDBData : DBData
 {
     public string? Supplier { get; set; }
     public DateTime? CreateDate { get; set; }
@@ -39,12 +39,5 @@ public class StageDBData : DBData
     public string BlockList { get; set; }
 
     //목표 데이터 추가
-
-}
-
-[Serializable]
-public class BlockDBData
-{
-    public BlockType type { get; set; }
 
 }

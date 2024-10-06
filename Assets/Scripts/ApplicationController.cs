@@ -74,8 +74,9 @@ public class ApplicationController : MonoBehaviour
         {
             //씬전환 하쟈!!
             //씬전환 전에 load및save할 내용 등록하고 
-            SceneLoader.Instance.AddLoad(DataManager.Instance.GetWebRequestData<UserAssetResponse>(ResponseDataType.Asset, $"Asset/{AuthManager.Instance.UID}"));
-            SceneLoader.Instance.AddLoad(CreatePlayer());
+            SceneLoader.Instance.AddLoadJobQueue(DataManager.Instance.GetWebRequestData<UserAssetResponse>(ResponseDataType.Asset, $"Asset/{AuthManager.Instance.UID}"));
+            SceneLoader.Instance.AddLoadJobQueue(DataManager.Instance.GetWebRequestData<StageResponse>(ResponseDataType.Stage, $"Stage/{AuthManager.Instance.UID}"));
+            SceneLoader.Instance.AddLoadJobQueue(CreatePlayer());
             StartCoroutine(SceneLoader.Instance.NextSceneLoadAsync("LobbyScene"));
         }
     }

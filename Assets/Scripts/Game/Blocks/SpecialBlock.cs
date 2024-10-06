@@ -7,14 +7,6 @@ using UnityEngine;
 
 public class SpecialBlock : Block
 {
-    protected override void DestroyBlock()
-    {
-        throw new NotImplementedException();
-    }
 
-    protected override bool FindMatches()
-    {
-        return true;
-    }
 }
 

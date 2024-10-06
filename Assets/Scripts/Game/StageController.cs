@@ -1,30 +1,32 @@
 using System.Collections;
 using System.Collections.Generic;
+using UnityEditor.U2D.Aseprite;
 using UnityEngine;
 
 public class StageController : MonoBehaviour
 {
+    private Player player;
 
+    private StageData stageData;
+    [SerializeField] private BlockSpawner spawner;
+    [SerializeField] private BlockController blockController;
     private void Awake()
     {
-        //if (DataManager.Instance.FindData(ResponseDataType.Stage))
-        //{
-        //    DataManager.Instance.GetWebRequestData<StageResponse>(ResponseDataType.Stage, $"Stage/{GameManager.Instance.selectStageLevel}");
-        //}
-        //else
-        //{
-        //    Debug.LogError("스테이지 정보가 존재하지않음");
-        //}
+
+        player = GameObject.FindGameObjectWithTag("Player").GetComponent<Player>();
+
+
+
+
     }
-    // Start is called before the first frame update
-    void Start()
+    private void Start()
     {
 
+        stageData = (StageData)GameManager.Instance.currentStageData.Clone();
+
+
+        blockController.Init(stageData);
     }
 
-    // Update is called once per frame
-    void Update()
-    {
 
-    }
 }
